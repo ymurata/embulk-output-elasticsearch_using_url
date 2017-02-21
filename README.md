@@ -6,7 +6,7 @@ This plugin is forked from https://github.com/ipros-team/embulk-output-elasticse
 * **Plugin type**: output
 * **Load all or nothing**: no
 * **Resume supported**: no
-* **Cleanup supported**: no
+* **Cleanup supported**: yes
 
 ## Configuration
 
