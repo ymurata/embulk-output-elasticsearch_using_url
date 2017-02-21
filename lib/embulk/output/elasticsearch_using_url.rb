@@ -1,9 +1,12 @@
+require 'excon'
+require 'elasticsearch'
+
 module Embulk
   module Output
 
-    class ElasticsearchUsingUrl < OutputPlugin
-      Plugin.register_output("elasticsearch_using_url", self)
-      ENABLE_MODE = %w[normal update]
+    class Elasticsearch < OutputPlugin
+      Plugin.register_output("elasticsearch_ruby", self)
+      ENABLE_MODE = %w[normal update replace]
 
       def self.transaction(config, schema, count, &control)
         task = {
@@ -37,14 +40,65 @@ module Embulk
           client.indices.put_template name: task['before_template_name'], body: task['before_template']
         end
 
-        return self.resume(task, schema, count, &control)
-      end
-
-      def self.resume(task, schema, count, &control)
         task_reports = yield(task)
         next_config_diff = {}
         return next_config_diff
       end
+
+      def self.cleanup(task, schema, count, task_reports)
+        if task['mode'] == 'replace'
+          client = create_client(task)
+          create_aliases(client, task['index'], get_index(task))
+          delete_aliases(client, task)
+        end
+      end
+
+      def self.create_client(task)
+        return ::Elasticsearch::Client.new urls: task['nodes'].map{|v| v['url']}.join(','),
+          reload_connections: task['reload_connections'],
+          reload_on_failure: task['reload_on_failure'],
+          retry_on_failure: task['retry_on_failure'],
+          transport_options: {
+            request: { timeout: task['request_timeout'] }
+          }
+      end
+
+      def self.create_aliases(client, als, index)
+        client.indices.update_aliases body: {
+          actions: [{ add: { index: index, alias: als } }]
+        }
+        Embulk.logger.info "created alias: #{als}, index: #{index}"
+      end
+
+      def self.delete_aliases(client, task)
+        indices = client.indices.get_aliases.select { |key, value| value['aliases'].include? task['index'] }.keys
+        indices = indices.select { |index| /^#{get_index_prefix(task)}-(\d*)/ =~ index }
+        indices.each { |index|
+          if index != get_index(task)
+            client.indices.delete_alias index: index, name: task['index']
+            Embulk.logger.info "deleted alias: #{task['index']}, index: #{index}"
+            if task['delete_old_index']
+              client.indices.delete index: index
+              Embulk.logger.info "deleted index: #{index}"
+            end
+          end
+        }
+      end
+
+      def self.get_index(task)
+        task['mode'] == 'replace' ? "#{get_index_prefix(task)}-#{task['time_value']}" : task['index']
+      end
+
+      def self.get_index_prefix(task)
+        "#{task['index']}-#{task['index_type']}"
+      end
+
+      #def self.resume(task, schema, count, &control)
+      #  task_reports = yield(task)
+      #
+      #  next_config_diff = {}
+      #  return next_config_diff
+      #end
 
       def init
         @nodes = task["nodes"]
@@ -55,9 +109,9 @@ module Embulk
         @array_columns = task["array_columns"]
         @retry_on_failure = task["retry_on_failure"]
         @mode = task["mode"]
-        @index = task['index']
+        @index = self.class.get_index(task)
 
-        @client = create_client(task)
+        @client = self.class.create_client(task)
         @bulk_message = []
       end
 
@@ -95,16 +149,6 @@ module Embulk
       end
 
       private
-
-      def create_client(task)
-        return ::Elasticsearch::Client.new urls: task['nodes'].map{|v| v['url']}.join(','),
-          reload_connections: task['reload_connections'],
-          reload_on_failure: task['reload_on_failure'],
-          retry_on_failure: task['retry_on_failure'],
-          transport_options: {
-            request: { timeout: task['request_timeout'] }
-          }
-      end
 
       def generate_array(record)
         result = {}
