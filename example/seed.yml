@@ -1,0 +1,10 @@
+in:
+  type: file
+  path_prefix: "./csv/sample_"
+out:
+  type: elasticsearch_using_url
+  mode: normal
+  nodes:
+    - url: "http://localhost:9200"
+  index: "sample"
+  index_type: "test"

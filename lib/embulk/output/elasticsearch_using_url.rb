@@ -5,7 +5,7 @@ module Embulk
   module Output
 
     class Elasticsearch < OutputPlugin
-      Plugin.register_output("elasticsearch_ruby", self)
+      Plugin.register_output("elasticsearch_using_url", self)
       ENABLE_MODE = %w[normal update replace]
 
       def self.transaction(config, schema, count, &control)
