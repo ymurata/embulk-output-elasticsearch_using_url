@@ -1,4 +1,4 @@
-# Elaasticsearch Using Url output plugin for Embulk
+# Elasticsearch Using Url output plugin for Embulk
 This plugin is forked from https://github.com/ipros-team/embulk-output-elasticsearch_ruby
 
 ## Overview
@@ -14,7 +14,7 @@ This plugin is forked from https://github.com/ipros-team/embulk-output-elasticse
 
 ```yaml
 out:
-  type: elaasticsearch_using_url
+  type: elasticsearch_using_url
   mode: normal
   nodes:
     - url: "http://localhost:9200"
