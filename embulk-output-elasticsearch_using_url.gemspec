@@ -1,7 +1,7 @@
 
 Gem::Specification.new do |spec|
   spec.name          = "embulk-output-elasticsearch_using_url"
-  spec.version       = "0.1.1"
+  spec.version       = "0.1.2"
   spec.authors       = ["Yuma Murata"]
   spec.summary       = "Elasticsearch Using Url output plugin for Embulk"
   spec.description   = "Dumps records to Elasticsearch Using Url."
