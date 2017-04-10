@@ -1,4 +1,3 @@
-require 'excon'
 require 'elasticsearch'
 
 module Embulk
