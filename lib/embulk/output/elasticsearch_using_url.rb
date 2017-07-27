@@ -1,4 +1,5 @@
 require 'elasticsearch'
+require 'json'
 
 module Embulk
   module Output
@@ -157,8 +158,22 @@ module Embulk
           next if (value.nil? || !@array_columns)
           @array_columns.each do |array_column|
             if array_column['name'] == key
-              array_value = value.split(array_column['delimiter']).reject(&:empty?)
-              array_value = array_value.map(&:to_i) if array_column['is_integer']
+              if array_column['parse_json']
+                begin
+                  array_value = JSON.parse value
+                rescue JSON::ParserError => e
+                  message = "Json parse error. #{e.message}"
+                  if array_column['error_skip']
+                    array_value = nil
+                    Embulk.logger.warn message
+                  else
+                    raise message
+                  end
+                end
+              else
+                array_value = value.split(array_column['delimiter']).reject(&:empty?)
+                array_value = array_value.map(&:to_i) if array_column['is_integer']
+              end
               result[key] = array_value
             end
           end
